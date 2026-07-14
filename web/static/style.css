@@ -525,9 +525,39 @@ main {
 @media (max-width: 600px) {
   .theme-picker { display: none; }
   .month-label { min-width: 90px; font-size: 14px; }
-  .cal-cell { min-height: 60px; }
-  .cal-cell .date-num { font-size: 12px; }
-  .evt { font-size: 10px; }
+  .cal-cell {
+    min-height: 0;
+    height: 62px;
+    overflow: hidden;
+    padding: 4px;
+  }
+  .cal-cell .date-num { font-size: 12px; margin-bottom: 2px; }
+  .cal-cell .events {
+    gap: 2px;
+    max-height: calc(62px - 22px);
+    overflow: hidden;
+  }
+  .evt {
+    font-size: 10px;
+    padding: 1px 4px;
+    flex-shrink: 0;
+  }
+  /* 多余事件提示：右下角"+N"角标（由 JS 追加） */
+  .cal-cell .more-tag {
+    position: absolute;
+    right: 3px;
+    bottom: 2px;
+    font-size: 9px;
+    color: var(--primary);
+    background: var(--card);
+    padding: 0 4px;
+    border-radius: 6px;
+    line-height: 1.4;
+    font-weight: 600;
+    pointer-events: none;
+  }
+  /* 手机端小兔子挪一下，别挡数字 */
+  .cal-cell.today::after { top: 2px; right: 4px; font-size: 10px; }
   .side {
     position: static;
     max-height: none;

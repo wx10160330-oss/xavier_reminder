@@ -235,6 +235,21 @@
       }
       cell.appendChild(events);
 
+      // 手机端：格子高度受限，事件过多时用 "+N" 角标提示
+      // 阈值 = 手机端一格能放下的事件数（约 2 条）
+      const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      const maxVisible = isMobile ? 2 : 999;
+      if (hits.length > maxVisible) {
+        const evtNodes = events.querySelectorAll(".evt");
+        for (let k = maxVisible; k < evtNodes.length; k++) {
+          evtNodes[k].style.display = "none";
+        }
+        const more = document.createElement("div");
+        more.className = "more-tag";
+        more.textContent = `+${hits.length - maxVisible}`;
+        cell.appendChild(more);
+      }
+
       cell.addEventListener("click", () => {
         openNew(dt);
       });
@@ -558,6 +573,13 @@
     reload();
     // 每 30 秒自动刷新
     setInterval(reload, 30000);
+
+    // 窗口尺寸变化时重绘日历（防止手机/桌面模式切换后事件数量显示不对）
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => renderCalendar(), 200);
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);
