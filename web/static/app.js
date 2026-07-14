@@ -228,10 +228,7 @@
         if (isSkip) tips.push("此日跳过");
         if (isDone) tips.push("已完成");
         ev.title = r.content + (tips.length ? `（${tips.join("・")}）` : "");
-        ev.addEventListener("click", (ev2) => {
-          ev2.stopPropagation();
-          openEdit(r.id);
-        });
+        // 点事件条不再单独响应，让点击冒泡到格子，统一进当日详情
         events.appendChild(ev);
       }
       cell.appendChild(events);
@@ -252,12 +249,9 @@
       }
 
       cell.addEventListener("click", () => {
-        // 有事件的话，先弹出当日详情让用户看清；没事的话直接新建
-        if (hits.length > 0) {
-          openDayView(dt, hits);
-        } else {
-          openNew(dt);
-        }
+        // 统一入口：点格子任意位置都弹当日详情
+        // 有事就能看清楚；没事就在弹窗里点"新建此日提醒"
+        openDayView(dt, hits);
       });
 
       body.appendChild(cell);

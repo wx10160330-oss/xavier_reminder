@@ -338,9 +338,9 @@ main {
   padding: 2px 6px;
   border-radius: 4px;
   color: white;
-  cursor: pointer;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: filter .12s;
+  pointer-events: none;
 }
 .evt.daily { background: var(--daily-color); }
 .evt.once { background: var(--once-color); }
