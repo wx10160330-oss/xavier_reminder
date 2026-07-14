@@ -133,3 +133,14 @@ class ReminderStore:
 
     def count_by_umo(self, umo: str) -> int:
         return sum(1 for r in self._items.values() if r.umo == umo)
+
+    def active_count_by_umo(self, umo: str) -> int:
+        """有效数量（用于计算上限）：不含已完成的单次提醒。
+
+        每日循环 (daily) 永远算有效；单次 (once) 在触发完成前算有效，
+        触发后（is_completed）不再占用配额。
+        """
+        return sum(
+            1 for r in self._items.values()
+            if r.umo == umo and not (r.type == "once" and r.is_completed())
+        )

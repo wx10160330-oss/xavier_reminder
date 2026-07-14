@@ -287,12 +287,12 @@ class XavierReminderPlugin(Star):
         if rtype not in ("once", "daily"):
             return {"ok": False, "msg": "type 必须是 once 或 daily"}
 
-        # 数量限制
+        # 数量限制（已完成的单次提醒不占额度）
         max_per = self._cfg_int("max_reminders_per_session", 50)
-        if self.store.count_by_umo(umo) >= max_per:
+        if self.store.active_count_by_umo(umo) >= max_per:
             return {
                 "ok": False,
-                "msg": f"本会话提醒数量已达上限 {max_per}，请先删除一些"
+                "msg": f"本会话有效提醒数量已达上限 {max_per}，请先删除或清理一些"
             }
 
         try:
