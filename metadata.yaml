@@ -1,11 +1,12 @@
 name: xavier_reminder
 display_name: Xavier Reminder
-desc: 显式定时提醒 + Web 日历面板。用自然语言让 LLM 帮你记提醒，日历面板可视化管理。
+desc: |
+  显式定时提醒 + Web 日历面板。用自然语言让 LLM 帮你记提醒，日历面板可视化管理。
 
-**快捷指令**:
-- `/reminders`: 列出当前会话的所有提醒
-- `/reminder_clear`: 清空当前会话的所有提醒
-- `/reminder_web`: 获取 Web 日历面板的访问地址
+  快捷指令：
+  - /reminders 查看当前会话的所有提醒
+  - /reminder_clear 清空当前会话的提醒（需二次确认）
+  - /reminder_web 获取 Web 日历面板的访问地址
 short_desc: 定时提醒 + 日历
 version: 1.0.0
 author: wkk

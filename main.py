@@ -475,6 +475,7 @@ class XavierReminderPlugin(Star):
 
     @filter.command("reminders")
     async def cmd_list(self, event: AstrMessageEvent):
+        """查看当前会话的所有提醒（按下次触发时间排序）"""
         umo = event.unified_msg_origin
         items = self.store.by_umo(umo)
         if not items:
@@ -500,6 +501,7 @@ class XavierReminderPlugin(Star):
 
     @filter.command("reminder_clear")
     async def cmd_clear(self, event: AstrMessageEvent):
+        """清空当前会话的所有提醒（需二次确认）"""
         umo = event.unified_msg_origin
         n = self.store.count_by_umo(umo)
         if n == 0:
@@ -511,12 +513,14 @@ class XavierReminderPlugin(Star):
 
     @filter.command("reminder_clear_yes")
     async def cmd_clear_yes(self, event: AstrMessageEvent):
+        """确认清空当前会话的所有提醒（配合 /reminder_clear 使用）"""
         umo = event.unified_msg_origin
         n = await self.store.clear(umo=umo)
         yield event.plain_result(f"已清空 {n} 条提醒。")
 
     @filter.command("reminder_web")
     async def cmd_web(self, event: AstrMessageEvent):
+        """获取 Web 日历面板的访问地址、账号与登录状态"""
         if not self._cfg_bool("enable_web", True):
             yield event.plain_result("Web 面板未启用（配置里 enable_web=false）")
             return
