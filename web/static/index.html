@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="lilac">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Xavier Reminder</title>
+<meta name="theme-color" content="#a889e6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reminder">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" type="image/png" sizes="32x32" href="__BASE_PATH__/static/favicon-32.png">
+<link rel="icon" type="image/svg+xml" href="__BASE_PATH__/static/icon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="__BASE_PATH__/static/icon-180.png">
+<link rel="manifest" href="__BASE_PATH__/static/manifest.json">
+<link rel="stylesheet" href="__BASE_PATH__/static/style.css?v=4">
+</head>
+<body>
+<header class="topbar">
+  <h1>
+    <img class="logo-svg" src="__BASE_PATH__/static/icon.svg" alt="">
+    Reminder
+  </h1>
+  <div class="actions">
+    <button id="btn-today" class="btn ghost">今天</button>
+    <button id="btn-prev" class="btn ghost">‹</button>
+    <span id="cur-month" class="month-label"></span>
+    <button id="btn-next" class="btn ghost">›</button>
+    <select id="umo-filter"><option value="">全部会话</option></select>
+    <button id="btn-new" class="btn primary">＋ 新建提醒</button>
+    <div class="theme-picker" title="切换主题">
+      <div class="theme-swatch" data-theme="lilac" title="浅紫"></div>
+      <div class="theme-swatch" data-theme="pink" title="粉色"></div>
+      <div class="theme-swatch" data-theme="mint" title="薄荷"></div>
+      <div class="theme-swatch" data-theme="sky" title="天蓝"></div>
+      <div class="theme-swatch" data-theme="peach" title="蜜桃"></div>
+      <div class="theme-swatch" data-theme="dark" title="夜间"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="calendar" class="calendar"></div>
+  <aside id="side" class="side">
+    <div class="side-head">
+      <h2>🌸 提醒列表</h2>
+      <button id="btn-clear-done" class="btn ghost small hidden" title="删除所有已完成的单次提醒">🧹 清理已完成</button>
+    </div>
+    <div id="list" class="list"></div>
+  </aside>
+</main>
+
+<!-- 新建/编辑对话框 -->
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="modal-title">🐰 新建提醒</h3>
+
+    <label>类型
+      <select id="f-type">
+        <option value="once">单次（某一天某时刻）</option>
+        <option value="daily">每日（每天固定时间）</option>
+      </select>
+    </label>
+
+    <label>内容
+      <input id="f-content" type="text" placeholder="比如：吃早饭 / 拿快递">
+    </label>
+
+    <label id="f-time-wrap">
+      <span id="f-time-label">时间</span>
+      <input id="f-daily-time" type="time" value="08:00" class="hidden">
+      <input id="f-once-time" type="datetime-local" class="hidden">
+    </label>
+
+    <label id="f-umo-wrap">目标会话
+      <select id="f-umo"></select>
+      <span class="hint">选择要发送到哪个 IM 会话。只有一个会话时会自动选中。</span>
+    </label>
+
+    <div id="skip-editor" class="skip-editor hidden">
+      <h4>已跳过日期</h4>
+      <div id="skip-list"></div>
+      <div class="skip-add">
+        <input id="skip-date" type="date">
+        <button id="btn-add-skip" class="btn ghost">＋ 添加跳过</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btn-delete" class="btn danger hidden">删除</button>
+      <div class="spacer"></div>
+      <button id="btn-cancel" class="btn ghost">取消</button>
+      <button id="btn-save" class="btn primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+  window.__BASE__ = "__BASE_PATH__";
+</script>
+<script src="__BASE_PATH__/static/app.js?v=4"></script>
+</body>
+</html>

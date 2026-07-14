@@ -1,0 +1,32 @@
+{
+  "name": "Xavier Reminder",
+  "short_name": "Reminder",
+  "description": "定时提醒 + 日历",
+  "start_url": "__BASE_PATH__/",
+  "scope": "__BASE_PATH__/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f2ff",
+  "theme_color": "#a889e6",
+  "icons": [
+    {
+      "src": "__BASE_PATH__/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "__BASE_PATH__/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "__BASE_PATH__/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+

@@ -1,0 +1,80 @@
+{
+    "trigger_prompt_template": {
+        "type": "text",
+        "description": "触发时说给模型听的话",
+        "hint": "时间到的时候，插件会把这段话伪装成一条消息发给 LLM，让 TA 自然地把提醒说出来。可以用三个占位符（就是那种带花括号的变量）：{content} 会被替换成你当初设的提醒内容（比如「吃早饭」）；{time} 会被替换成本次触发的具体时间（比如「2026-07-15 08:00」）；{type} 会被替换成「每日」或「单次」。举例：模板写「{time} 到啦，该 {content} 了」，实际会变成「2026-07-15 08:00 到啦，该 吃早饭 了」。你不想用某个占位符就别在模板里写它，不影响其他两个。",
+        "default": "[提醒系统消息]\n到点了。你之前答应过要提醒她这件事：\n「{content}」\n请结合你们的对话上下文和你当前的状态，用你自己的口吻自然地提醒她，不要生硬复读上面的内容，也不要暴露「系统消息」这几个字。"
+    },
+    "scan_interval_seconds": {
+        "type": "int",
+        "description": "扫描间隔（秒）",
+        "hint": "插件后台每隔多少秒检查一遍所有提醒有没有到点。默认 30 秒够用，太短没意义，太长会不准。建议 20~60。",
+        "default": 30
+    },
+    "no_interrupt_seconds": {
+        "type": "int",
+        "description": "不打断阈值（秒）",
+        "hint": "如果你和 LLM 最近这么多秒内正在说话，即使提醒到点了也先等一等，等这轮聊完再提。设 0 就是从不等待，立刻插进来。",
+        "default": 60
+    },
+    "enable_confirmation": {
+        "type": "bool",
+        "description": "开启确认机制",
+        "hint": "开了以后：提醒完你如果一直不回应，过一段时间会再提醒一次。关了就是提醒完就算了。默认关。",
+        "default": false
+    },
+    "confirmation_retry_minutes": {
+        "type": "int",
+        "description": "确认机制重试间隔（分钟）",
+        "hint": "开了确认机制后，多少分钟再提醒一次。只重试 1 次，避免打扰。",
+        "default": 10
+    },
+    "max_reminders_per_session": {
+        "type": "int",
+        "description": "单会话最多几条提醒",
+        "hint": "防止不小心塞爆。到达上限后 LLM 想再加会被拒绝，你可以先删几条再加。",
+        "default": 50
+    },
+    "bot_qq_id": {
+        "type": "string",
+        "description": "机器人 QQ 号",
+        "hint": "aiocqhttp 平台伪造消息注入用。留空的话插件会自己去找，一般不用填。如果重启后触发失败可以填这里。",
+        "default": ""
+    },
+    "enable_web": {
+        "type": "bool",
+        "description": "启用 Web 日历面板",
+        "hint": "开了以后可以在浏览器里可视化管理所有提醒。密码必须填才能启动。",
+        "default": true
+    },
+    "web_host": {
+        "type": "string",
+        "description": "Web 监听地址",
+        "hint": "0.0.0.0 表示对外可访问（云服务器公开访问用这个）；127.0.0.1 只能本机访问（本地测试用这个）。",
+        "default": "0.0.0.0"
+    },
+    "web_port": {
+        "type": "int",
+        "description": "Web 端口",
+        "hint": "浏览器访问的端口号。默认 8899，改的话记得防火墙/安全组也要开。",
+        "default": 8899
+    },
+    "web_username": {
+        "type": "string",
+        "description": "Web 登录用户名",
+        "hint": "浏览器打开面板时要输入的用户名。",
+        "default": "xavier"
+    },
+    "web_password": {
+        "type": "string",
+        "description": "Web 登录密码",
+        "hint": "必须填，不填 Web 面板不会启动（安全考虑）。设一个只有你自己知道的复杂密码。",
+        "default": ""
+    },
+    "web_base_path": {
+        "type": "string",
+        "description": "Web 访问路径",
+        "hint": "默认留空，访问地址就是 http://IP:端口/。想加子路径就填「/reminder」这种，访问地址就变成 http://IP:端口/reminder/。一般不用改。",
+        "default": ""
+    }
+}
