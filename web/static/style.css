@@ -472,6 +472,69 @@ main {
   display: flex; align-items: center; gap: 8px;
   margin-top: 16px;
 }
+
+/* ============ 当日详情弹窗 ============ */
+.day-card {
+  max-width: 420px;
+}
+.day-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 6px 0 4px;
+}
+.day-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.day-item:hover {
+  border-color: var(--border-strong);
+  transform: translateX(2px);
+  box-shadow: 0 2px 6px var(--shadow);
+}
+.day-item .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.day-item .dot.daily { background: var(--daily-color); }
+.day-item .dot.once { background: var(--once-color); }
+.day-item.skipped .dot,
+.day-item.completed .dot { background: var(--skipped); }
+.day-item .time {
+  font-weight: 600; color: var(--primary);
+  font-size: 14px;
+  min-width: 46px;
+  font-variant-numeric: tabular-nums;
+}
+.day-item .content {
+  flex: 1;
+  color: var(--text);
+  font-size: 14px;
+  word-break: break-word;
+}
+.day-item .tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--text-hint);
+  background: var(--border);
+}
+.day-item.skipped .content,
+.day-item.completed .content {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.day-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
 .spacer { flex: 1; }
 
 .hidden { display: none; }

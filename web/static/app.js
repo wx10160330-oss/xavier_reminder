@@ -12,6 +12,7 @@
     editingId: null,
     umos: [],
     skipDates: [],
+    dayViewDate: null,
   };
 
   // ---------- 主题 ----------
@@ -251,7 +252,12 @@
       }
 
       cell.addEventListener("click", () => {
-        openNew(dt);
+        // 有事件的话，先弹出当日详情让用户看清；没事的话直接新建
+        if (hits.length > 0) {
+          openDayView(dt, hits);
+        } else {
+          openNew(dt);
+        }
       });
 
       body.appendChild(cell);
@@ -322,6 +328,82 @@
     $("#modal").classList.add("hidden");
     state.editingId = null;
     state.skipDates = [];
+  }
+
+  // ---------- 当日详情弹窗 ----------
+  function openDayView(dt, hits) {
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const d = dt.getDate();
+    const week = ["日", "一", "二", "三", "四", "五", "六"][dt.getDay()];
+    $("#day-title").textContent = `📅 ${y}年${m}月${d}日 · 周${week}`;
+
+    const list = $("#day-list");
+    list.innerHTML = "";
+    const dstr = ymd(dt);
+
+    if (!hits || hits.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "day-empty";
+      empty.textContent = "🐰 这一天没有提醒";
+      list.appendChild(empty);
+    } else {
+      for (const { r, time } of hits) {
+        const item = document.createElement("div");
+        item.className = "day-item";
+        const isSkip = r.skip_dates && r.skip_dates.includes(dstr);
+        const isDone = r.completed && r.type === "once";
+        if (isSkip) item.classList.add("skipped");
+        if (isDone) item.classList.add("completed");
+
+        const dot = document.createElement("span");
+        dot.className = "dot " + r.type;
+        item.appendChild(dot);
+
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "time";
+        timeSpan.textContent = time;
+        item.appendChild(timeSpan);
+
+        const content = document.createElement("span");
+        content.className = "content";
+        content.textContent = r.content;
+        item.appendChild(content);
+
+        if (r.type === "daily") {
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = "每日";
+          item.appendChild(tag);
+        }
+        if (isSkip) {
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = "跳过";
+          item.appendChild(tag);
+        }
+        if (isDone) {
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = "已完成";
+          item.appendChild(tag);
+        }
+
+        item.addEventListener("click", () => {
+          closeDayView();
+          openEdit(r.id);
+        });
+        list.appendChild(item);
+      }
+    }
+
+    state.dayViewDate = new Date(dt);
+    $("#day-modal").classList.remove("hidden");
+  }
+
+  function closeDayView() {
+    $("#day-modal").classList.add("hidden");
+    state.dayViewDate = null;
   }
 
   function openNew(dt) {
@@ -568,6 +650,17 @@
     // 点遮罩关闭
     $("#modal").addEventListener("click", (e) => {
       if (e.target.id === "modal") closeModal();
+    });
+
+    // 当日详情弹窗
+    $("#btn-day-close").addEventListener("click", closeDayView);
+    $("#btn-day-new").addEventListener("click", () => {
+      const dt = state.dayViewDate || new Date();
+      closeDayView();
+      openNew(dt);
+    });
+    $("#day-modal").addEventListener("click", (e) => {
+      if (e.target.id === "day-modal") closeDayView();
     });
 
     reload();

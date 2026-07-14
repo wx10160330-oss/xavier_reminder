@@ -12,7 +12,7 @@
 <link rel="icon" type="image/svg+xml" href="__BASE_PATH__/static/icon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="__BASE_PATH__/static/icon-180.png">
 <link rel="manifest" href="__BASE_PATH__/static/manifest.json">
-<link rel="stylesheet" href="__BASE_PATH__/static/style.css?v=4">
+<link rel="stylesheet" href="__BASE_PATH__/static/style.css?v=5">
 </head>
 <body>
 <header class="topbar">
@@ -94,11 +94,24 @@
   </div>
 </div>
 
+<!-- 当日详情：点某天有事的格子时弹出 -->
+<div id="day-modal" class="modal hidden">
+  <div class="modal-card day-card">
+    <h3 id="day-title">📅 当日提醒</h3>
+    <div id="day-list" class="day-list"></div>
+    <div class="modal-actions">
+      <div class="spacer"></div>
+      <button id="btn-day-close" class="btn ghost">关闭</button>
+      <button id="btn-day-new" class="btn primary">＋ 新建此日提醒</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
 <script>
   window.__BASE__ = "__BASE_PATH__";
 </script>
-<script src="__BASE_PATH__/static/app.js?v=4"></script>
+<script src="__BASE_PATH__/static/app.js?v=5"></script>
 </body>
 </html>
