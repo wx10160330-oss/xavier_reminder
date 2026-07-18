@@ -40,7 +40,16 @@ PLUGIN_NAME = "xavier_reminder"
 
 
 TOOL_INSTRUCTIONS = """
-【提醒工具使用规范】
+【提醒工具使用规范 - 严格遵守】
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 强制约束（违反视为严重错误）：
+- 所有与"定时提醒/闹钟"相关的操作（新增、查询、取消、跳过），必须且只能通过下面三个工具完成：
+  add_reminder / cancel_reminder / skip_reminder
+- 严禁调用 python 脚本、shell 命令、文件读写等任何方式去操作提醒数据文件（如 reminders.json）
+- 严禁自己"假装"完成了操作。要么调用工具成功，要么如实告诉用户失败原因
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 你有 add_reminder / cancel_reminder / skip_reminder 三个工具，用于帮用户管理定时提醒。
 
 时间解析规则（重要）：
@@ -54,9 +63,25 @@ TOOL_INSTRUCTIONS = """
 - 调用工具成功后，用你自己的口吻回复用户（比如"好的宝宝我记住啦"），不要复读工具返回的技术信息
 - 如果你收到 [提醒系统消息] 开头的消息，那是有提醒到点了。请结合上下文，用你自己的口吻自然地提醒用户，不要暴露"系统消息"这四个字
 
-模糊匹配：
-- cancel_reminder / skip_reminder 的 query 参数按内容关键词模糊匹配。用户说"取消每天早饭那个"你就传 "早饭"
-- 如果命中多条，工具会返回所有候选，你需要问清楚用户想操作哪一条
+模糊匹配 & 精确定位：
+- cancel_reminder / skip_reminder 支持 query（内容关键词）+ fire_time（触发时间）+ reminder_type（类型）多维过滤
+- 用户说"取消每天早饭那个"→ 传 query="早饭"
+- 用户说"取消明天早八点的提醒"→ 传 fire_time="YYYY-MM-DD 08:00"（把明天的日期换算好）
+- 用户说"取消每天7点的闹钟"→ 传 fire_time="07:00", reminder_type="daily"
+- 用户说"取消7月20号那天的提醒"→ 传 fire_time="2026-07-20"
+- 优先用具体时间定位，能一次命中就别问用户；实在只知道内容且命中多条时才追问
+
+命中多条候选时的处理流程（重点！按顺序执行）：
+1. 工具返回 {"ok": false, "candidates": [...]} 时，说明有多条重复匹配
+2. 【第一优先级】回头看用户最近几轮的话，找有没有时间线索：
+   - "取消明天的煮鸡蛋" → 用户已说了"明天"，你要算出明天日期，用 fire_time="YYYY-MM-DD HH:MM" 或 "YYYY-MM-DD" 重试
+   - "取消早上7点半的" → 用户已给了时刻，用 fire_time="07:30" 重试
+   - "取消每天的煮鸡蛋" → 用 reminder_type="daily" 重试
+   - "取消7月20号那个" → 用 fire_time="2026-07-20" 重试
+   - 用户说"那个"、"刚才那个"、"晚一点的那个" → 结合最近对话里她提过的时间去推断
+3. 【第二优先级】如果 candidates 里各条时间差别很明显、并且结合前面几轮对话能合理推断她要哪一条，就直接选那条、用具体 fire_time 重试。别多想。
+4. 【最后手段】只有在你完全无法从对话推断时，才用自然的口吻问她——不要罗列 id、不要粘贴技术信息，就像朋友之间聊天："宝宝，你说的是明天早上那个、还是后天早上那个呀？"
+5. 严禁：跑 python 脚本、读写数据文件、假装完成操作
 
 跳过：
 - 用户说"明天不用提醒"→ skip_type="once"（默认跳下一次）
@@ -328,27 +353,229 @@ class XavierReminderPlugin(Star):
     async def tool_cancel(
         self,
         event: AstrMessageEvent,
-        query: str,
+        query: str = "",
+        fire_time: str = "",
+        reminder_type: str = "",
     ):
-        """按内容关键词取消提醒。命中多条时会返回全部候选让你二次确认。
+        """按条件取消提醒。支持内容关键词、类型、触发时间任意组合过滤。
+
+        使用要点：
+        - 如果用户提到了具体时间（如"取消明天早八点的提醒"、"取消每天7点的闹钟"），
+          就把 fire_time 也传上，能精确定位到唯一一条
+        - query / fire_time 至少要传一个
+        - 命中唯一 → 直接取消；命中多条 → 返回候选，你再向用户追问
 
         Args:
-            query(string): 内容关键词，模糊匹配
+            query(string): 内容关键词，模糊匹配。用户没提内容就传空串
+            fire_time(string): 触发时间。once 格式 "YYYY-MM-DD HH:MM"，daily 格式 "HH:MM"。没提就传空串
+            reminder_type(string): 类型过滤，"once" / "daily" / 空串（不过滤）
 
         Returns:
             {"ok": true, "cancelled": [...], "message": "..."} 或
-            {"ok": false, "candidates": [...], "msg": "命中多条，请确认"}
+            {"ok": false, "candidates": [...], "msg": "..."}
         """
         if not self._is_enabled(event):
             return {"ok": False, "msg": "本会话已禁用 reminder 插件"}
         umo = event.unified_msg_origin
         q = (query or "").strip()
-        if not q:
-            return {"ok": False, "msg": "query 不能为空"}
+        ft = (fire_time or "").strip()
+        rtype = (reminder_type or "").strip().lower()
 
-        matched = self.store.search(q, umo=umo)
+        if not q and not ft:
+            return {"ok": False, "msg": "query 和 fire_time 至少要提供一个"}
+
+        # 第一步：内容关键词过滤（空串则取本会话全部）
+        if q:
+            matched = self.store.search(q, umo=umo)
+        else:
+            matched = [r for r in self.store.all() if r.umo == umo]
+
+        # 第二步：类型过滤
+        if rtype in ("once", "daily"):
+            matched = [r for r in matched if r.type == rtype]
+
+        # 第三步：触发时间过滤
+        if ft:
+            try:
+                matched = self._filter_by_fire_time(matched, ft)
+            except ValueError as e:
+                return {"ok": False, "msg": f"fire_time 格式错误：{e}"}
+
         if not matched:
-            return {"ok": False, "msg": f"没有匹配到含'{q}'的提醒"}
+            hint_parts = []
+            if q:
+                hint_parts.append(f"内容含'{q}'")
+            if ft:
+                hint_parts.append(f"时间'{ft}'")
+            if rtype:
+                hint_parts.append(f"类型={rtype}")
+            return {
+                "ok": False,
+                "msg": f"没有匹配到{' 且 '.join(hint_parts)}的提醒",
+            }
+
+        if len(matched) > 1:
+            candidates = [
+                {
+                    "id": r.id,
+                    "content": r.content,
+                    "type": r.type,
+                    "next_fire": datetime.fromtimestamp(
+                        r.next_fire_ts
+                    ).strftime("%Y-%m-%d %H:%M"),
+                }
+                for r in matched
+            ]
+            # 拼一条更直白的说明给 LLM
+            cand_lines = chr(10).join(
+                f"  {i+1}. [{c['type']}] {c['content']} → 下次触发 {c['next_fire']}"
+                for i, c in enumerate(candidates)
+            )
+            return {
+                "ok": False,
+                "candidates": candidates,
+                "msg": (
+                    f"命中 {len(matched)} 条候选：{chr(10)}{cand_lines}{chr(10)}"
+                    "【重要】优先做的事："
+                    "回看用户最近几轮的原话，找有没有时间线索（'明天'、'早上7点'、'那个'等），"
+                    "如果能推断出她要哪一条，直接带具体 fire_time 重新调用 cancel_reminder，不要问她。"
+                    "只有完全推断不出时，才用自然口吻问她（不要列 id 或粘贴技术信息）。"
+                    "严禁跑 python 脚本改数据。"
+                ),
+            }
+        r = matched[0]
+        await self.store.remove(r.id)
+        logger.info(f"[reminder] LLM 取消 | id={r.id} | content={r.content}")
+        return {
+            "ok": True,
+            "cancelled": [{"id": r.id, "content": r.content}],
+            "message": f"已取消提醒：{r.content}",
+        }
+
+    def _filter_by_fire_time(self, reminders, fire_time_str: str):
+        """按 fire_time 字符串过滤提醒列表。
+
+        支持三种格式：
+        - "YYYY-MM-DD HH:MM"：精确匹配单次提醒的触发时间
+        - "HH:MM"：匹配 daily 的每日时刻，或匹配 once 的时/分部分
+        - "YYYY-MM-DD"：匹配当天所有 once 触发的提醒
+        """
+        s = fire_time_str.strip()
+        result = []
+
+        # 尝试 "YYYY-MM-DD HH:MM"
+        try:
+            target_dt = parse_once_time(s)
+            for r in reminders:
+                dt = datetime.fromtimestamp(r.next_fire_ts)
+                if (
+                    dt.year == target_dt.year
+                    and dt.month == target_dt.month
+                    and dt.day == target_dt.day
+                    and dt.hour == target_dt.hour
+                    and dt.minute == target_dt.minute
+                ):
+                    result.append(r)
+            return result
+        except ValueError:
+            pass
+
+        # 尝试 "HH:MM"
+        try:
+            h, m = parse_daily_time(s)
+            for r in reminders:
+                if r.type == "daily":
+                    if r.hour == h and r.minute == m:
+                        result.append(r)
+                else:
+                    dt = datetime.fromtimestamp(r.next_fire_ts)
+                    if dt.hour == h and dt.minute == m:
+                        result.append(r)
+            return result
+        except ValueError:
+            pass
+
+        # 尝试 "YYYY-MM-DD"
+        try:
+            target_date_str = parse_date_str(s)
+            for r in reminders:
+                if r.type == "once":
+                    dt = datetime.fromtimestamp(r.next_fire_ts)
+                    if dt.strftime("%Y-%m-%d") == target_date_str:
+                        result.append(r)
+            return result
+        except ValueError:
+            pass
+
+        raise ValueError(
+            "支持格式：YYYY-MM-DD HH:MM / HH:MM / YYYY-MM-DD"
+        )
+
+    @filter.llm_tool(name="skip_reminder")
+    async def tool_skip(
+        self,
+        event: AstrMessageEvent,
+        query: str = "",
+        fire_time: str = "",
+        reminder_type: str = "",
+        skip_type: str = "once",
+        count: int = 1,
+        until: str = "",
+    ):
+        """按条件让提醒临时跳过若干次或到某一天。支持内容关键词 + 触发时间多维过滤。
+
+        使用要点：
+        - 如果用户提到了具体时间（如"明天早八点那个别提醒"、"每天7点的先跳一次"），
+          把 fire_time 也传上，能精确定位
+        - query / fire_time 至少要传一个
+
+        Args:
+            query(string): 内容关键词，模糊匹配。没提就传空串
+            fire_time(string): 触发时间。once 格式 "YYYY-MM-DD HH:MM"，daily 格式 "HH:MM"。没提就传空串
+            reminder_type(string): 类型过滤，"once" / "daily" / 空串（不过滤）
+            skip_type(string): 跳过策略，可选 "once"（默认，跳下一次）/ "count"（跳 N 次）/ "until"（跳到某天为止）
+            count(number): skip_type=count 时必填，要跳过多少次（天）
+            until(string): skip_type=until 时必填，格式 YYYY-MM-DD，跳到这一天为止（含）
+
+        Returns:
+            {"ok": true, "message": "..."} 或 {"ok": false, ...}
+        """
+        if not self._is_enabled(event):
+            return {"ok": False, "msg": "本会话已禁用 reminder 插件"}
+        umo = event.unified_msg_origin
+        q = (query or "").strip()
+        ft = (fire_time or "").strip()
+        rtype_filter = (reminder_type or "").strip().lower()
+
+        if not q and not ft:
+            return {"ok": False, "msg": "query 和 fire_time 至少要提供一个"}
+
+        if q:
+            matched = self.store.search(q, umo=umo)
+        else:
+            matched = [r for r in self.store.all() if r.umo == umo]
+
+        if rtype_filter in ("once", "daily"):
+            matched = [r for r in matched if r.type == rtype_filter]
+
+        if ft:
+            try:
+                matched = self._filter_by_fire_time(matched, ft)
+            except ValueError as e:
+                return {"ok": False, "msg": f"fire_time 格式错误：{e}"}
+
+        if not matched:
+            hint_parts = []
+            if q:
+                hint_parts.append(f"内容含'{q}'")
+            if ft:
+                hint_parts.append(f"时间'{ft}'")
+            if rtype_filter:
+                hint_parts.append(f"类型={rtype_filter}")
+            return {
+                "ok": False,
+                "msg": f"没有匹配到{' 且 '.join(hint_parts)}的提醒",
+            }
         if len(matched) > 1:
             return {
                 "ok": False,
@@ -363,59 +590,10 @@ class XavierReminderPlugin(Star):
                     }
                     for r in matched
                 ],
-                "msg": f"命中 {len(matched)} 条，请问用户想取消哪一条？",
-            }
-        r = matched[0]
-        await self.store.remove(r.id)
-        logger.info(f"[reminder] LLM 取消 | id={r.id} | content={r.content}")
-        return {
-            "ok": True,
-            "cancelled": [{"id": r.id, "content": r.content}],
-            "message": f"已取消提醒：{r.content}",
-        }
-
-    @filter.llm_tool(name="skip_reminder")
-    async def tool_skip(
-        self,
-        event: AstrMessageEvent,
-        query: str,
-        skip_type: str = "once",
-        count: int = 1,
-        until: str = "",
-    ):
-        """按内容关键词让提醒临时跳过若干次或到某一天。
-
-        Args:
-            query(string): 内容关键词，模糊匹配
-            skip_type(string): 跳过策略，可选 "once"（默认，跳下一次）/ "count"（跳 N 次）/ "until"（跳到某天为止）
-            count(number): skip_type=count 时必填，要跳过多少次（天）
-            until(string): skip_type=until 时必填，格式 YYYY-MM-DD，跳到这一天为止（含）
-
-        Returns:
-            {"ok": true, "message": "..."} 或 {"ok": false, ...}
-        """
-        if not self._is_enabled(event):
-            return {"ok": False, "msg": "本会话已禁用 reminder 插件"}
-        umo = event.unified_msg_origin
-        q = (query or "").strip()
-        if not q:
-            return {"ok": False, "msg": "query 不能为空"}
-
-        matched = self.store.search(q, umo=umo)
-        if not matched:
-            return {"ok": False, "msg": f"没有匹配到含'{q}'的提醒"}
-        if len(matched) > 1:
-            return {
-                "ok": False,
-                "candidates": [
-                    {
-                        "id": r.id,
-                        "content": r.content,
-                        "type": r.type,
-                    }
-                    for r in matched
-                ],
-                "msg": f"命中 {len(matched)} 条，请问用户想跳过哪一条？",
+                "msg": (
+                    f"命中 {len(matched)} 条，请向用户追问："
+                    "是要跳过具体哪一条？"
+                ),
             }
         r = matched[0]
         st = (skip_type or "once").strip().lower()
