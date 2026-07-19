@@ -111,6 +111,16 @@ class ReminderScheduler:
         self, r: Reminder, no_interrupt_sec: int
     ) -> bool:
         """处理一条到期任务，返回是否有变更（需要保存）。"""
+        # 触发前先确认这条仍在 store 中。
+        # 因为 _tick_once 先收集 due 列表再逐条 await 处理，
+        # 用户可能在处理途中通过 Web / LLM 删除这条 → 引用还在 due 里，
+        # 若不检查会照常触发，造成"删了还提醒"的假触发。
+        if self.store.get(r.id) is None:
+            logger.info(
+                f"[reminder] 任务已被删除，取消触发 | id={r.id} | content={r.content}"
+            )
+            return False
+
         # 已完成的单次任务不该被触发（防御）：直接不动
         if r.type == "once" and r.is_completed():
             # 避免 due 一直命中：把时间挪远
